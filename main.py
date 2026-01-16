@@ -53,7 +53,7 @@ def main():
     
     if os.environ.get("BACKUP_SERVICE") == "s3":
       uploader = create_s3_uploader()
-      if uploader and not uploader.upload_file(backup, dst=os.environ["S3_PREFIX_PATH"]):
+      if uploader and not uploader.upload_file_v2(backup, dst=os.environ["S3_PREFIX_PATH"]):
         logger.error("Failed to upload to S3")
         sys.exit(1)
 
