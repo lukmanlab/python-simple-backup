@@ -3,10 +3,12 @@ import tarfile
 import time
 import os
 from pathlib import Path
+from modules.s3.upload import upload_to_s3
+from utils.logger import logger
 
 SOURCE_DIR = os.environ.get("SOURCE_DIR")
 BACKUP_DIR = os.environ.get("BACKUP_DIR")
-RETENTION_DAYS = int(os.environ.get("RETENTION_DAYS"))
+RETENTION_DAYS = int(os.environ.get("RETENTION_DAYS", "1"))
 
 def create_backup():
   timestamp = time.strftime("%Y-%m-%d_%H%M%S")
@@ -15,10 +17,12 @@ def create_backup():
 
   os.makedirs(BACKUP_DIR, exist_ok=True)
 
-  print(f"Creating backup: {backup_path}")
+  logger.info(f"Creating backup: {backup_path}")
 
   with tarfile.open(backup_path, "w:gz") as tar:
     tar.add(SOURCE_DIR, arcname=os.path.basename(SOURCE_DIR))
+
+  logger.info(f"Backup completed: {backup_path}")
 
   return backup_path
 
@@ -33,21 +37,29 @@ def cleanup_old_backup():
     if (age_days) > RETENTION_DAYS:
       file.unlink()
       deleted += 1
-
-  return deleted
+      logger.info(f"Old backups removed: {deleted}")
+      
 
 def main():
   if not os.path.exists(SOURCE_DIR):
-    print(f"Source directory not found: {SOURCE_DIR}")
+    logger.error(f"Source directory not found: {SOURCE_DIR}")
     sys.exit(2)
 
-  backup = create_backup()
-  deleted = cleanup_old_backup()
+  try:
+    backup = create_backup()
 
-  print(f"Backup completed: {backup}")
-  print(f"Old backups removed: {deleted}")
+    if not backup or not os.path.exists(backup):
+      sys.exit(1)
+    
+    if os.environ["BACKUP_SERVICE"] == "s3":
+      upload_to_s3(backup, os.path.basename(backup))
 
-  sys.exit(0)
+  except Exception as e:
+    logger.error(e)
+    sys.exit(1)
+
+  finally:
+    cleanup_old_backup()
 
 
 if __name__ == "__main__":

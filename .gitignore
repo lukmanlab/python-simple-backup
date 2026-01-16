@@ -1,2 +1,4 @@
 virtualenv
 coba*
+__pycache__
+*.log
