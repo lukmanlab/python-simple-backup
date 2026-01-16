@@ -25,7 +25,8 @@ SOURCE_DIR="cobasrc" \
 BACKUP_DIR="cobadest" \
 RETENTION_DAYS=2 \
 BACKUP_SERVICE=s3 \
-S3_BUCKET_NAME="bucketTest" \
+S3_ENDPOINT="https://is3.cloudhost.id" \
+S3_BUCKET_NAME="backup-v2" \
 S3_PREFIX_PATH="serviceTest" \
 python main.py
 ```

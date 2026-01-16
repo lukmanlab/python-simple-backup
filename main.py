@@ -3,7 +3,7 @@ import tarfile
 import time
 import os
 from pathlib import Path
-from modules.s3.upload import upload_to_s3
+from modules.s3.uploader import create_s3_uploader
 from utils.logger import logger
 
 SOURCE_DIR = os.environ.get("SOURCE_DIR")
@@ -51,8 +51,11 @@ def main():
     if not backup or not os.path.exists(backup):
       sys.exit(1)
     
-    if os.environ["BACKUP_SERVICE"] == "s3":
-      upload_to_s3(backup, os.path.basename(backup))
+    if os.environ.get("BACKUP_SERVICE") == "s3":
+      uploader = create_s3_uploader()
+      if uploader and not uploader.upload_file(backup, dst=os.environ["S3_PREFIX_PATH"]):
+        logger.error("Failed to upload to S3")
+        sys.exit(1)
 
   except Exception as e:
     logger.error(e)
