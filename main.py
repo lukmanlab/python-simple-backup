@@ -1,9 +1,11 @@
+import logging
 import sys
 import tarfile
 import time
 import os
 from pathlib import Path
-from modules.s3.uploader import create_s3_uploader
+from modules.s3.remover import S3Remover
+from modules.s3.uploader import S3Uploader
 from utils.logger import logger
 
 SOURCE_DIR = os.environ.get("SOURCE_DIR")
@@ -71,7 +73,7 @@ def main():
 
       # Upload all files
       if os.environ.get("BACKUP_SERVICE") == "s3":
-          uploader = create_s3_uploader()
+          uploader = S3Uploader()
           if not uploader:
               logger.error("Failed to initialize S3 uploader")
               sys.exit(1)
@@ -91,5 +93,13 @@ def main():
     else:  
       cleanup_old_backup()
 
+    remover = S3Remover()
+    remover.remove_objects()
+
 if __name__ == "__main__":
-  main()
+  try:
+    main()
+  except Exception as e:
+    logger.critical(f"Unhandled exception: {str(e)}", exc_info=True)
+    logging.shutdown()
+    sys.exit(1)
