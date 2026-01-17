@@ -26,11 +26,11 @@ def create_backup():
 
   return backup_path
 
-def cleanup_old_backup():
+def cleanup_old_backup(target_dir=BACKUP_DIR, pattern="backup-*.tar.gz"):
   time_now = time.time()
   deleted = 0
 
-  for file in Path(BACKUP_DIR).glob("backup-*.tar.gz"):
+  for file in Path(target_dir).glob(pattern):
     # 60 * 60 * 24 = 1 day
     age_days = (time_now - file.stat().st_mtime) / 86400
 
@@ -39,6 +39,15 @@ def cleanup_old_backup():
       deleted += 1
       logger.info(f"Old backups removed: {deleted}")
       
+def get_source_files(pattern="*.sql") -> list[Path]:
+  contents = Path(SOURCE_DIR).glob(pattern)
+  
+  file_list = []
+
+  for file in contents:
+    file_list.append(file)
+
+  return file_list
 
 def main():
   if not os.path.exists(SOURCE_DIR):
@@ -46,24 +55,41 @@ def main():
     sys.exit(2)
 
   try:
-    backup = create_backup()
+      if os.environ.get("SKIP_BACKUP"):
+          # When skipping backup, process all SQL files
+          files_to_upload = get_source_files()
+          if not files_to_upload:
+              logger.error("No files found to upload")
+              sys.exit(1)
+      else:
+          # Create a new backup and upload just that
+          backup = create_backup()
+          if not backup or not os.path.exists(backup):
+              logger.error("Backup creation failed")
+              sys.exit(1)
+          files_to_upload = [backup]
 
-    if not backup or not os.path.exists(backup):
-      sys.exit(1)
-    
-    if os.environ.get("BACKUP_SERVICE") == "s3":
-      uploader = create_s3_uploader()
-      if uploader and not uploader.upload_file_v2(backup, dst=os.environ["S3_PREFIX_PATH"]):
-        logger.error("Failed to upload to S3")
-        sys.exit(1)
+      # Upload all files
+      if os.environ.get("BACKUP_SERVICE") == "s3":
+          uploader = create_s3_uploader()
+          if not uploader:
+              logger.error("Failed to initialize S3 uploader")
+              sys.exit(1)
+          
+          for file in files_to_upload:
+              if not uploader.upload_file_v2(file, dst=os.environ["S3_PREFIX_PATH"]):
+                  logger.error(f"Failed to upload {file} to S3")
+                  sys.exit(1)
 
   except Exception as e:
     logger.error(e)
     sys.exit(1)
 
   finally:
-    cleanup_old_backup()
-
+    if os.environ.get("SKIP_BACKUP"):
+      cleanup_old_backup(SOURCE_DIR, pattern="*.sql")
+    else:  
+      cleanup_old_backup()
 
 if __name__ == "__main__":
   main()
