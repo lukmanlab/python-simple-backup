@@ -2,3 +2,4 @@ virtualenv
 coba*
 __pycache__
 *.log
+note.txt

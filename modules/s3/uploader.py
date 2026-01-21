@@ -97,7 +97,8 @@ class S3Uploader:
               
               if bytes_seen - last_log >= log_interval or bytes_seen >= file_size:
                   percent = (bytes_seen / file_size) * 100
-                  logger.info(f"Progress: {bytes_seen/1024/1024:.2f} MB / {file_size/1024/1024:.2f} MB ({percent:.1f}%)")
+                  if percent >= 90:
+                    logger.info(f"Progress: {bytes_seen/1024/1024:.2f} MB / {file_size/1024/1024:.2f} MB ({percent:.1f}%)")
                   last_log = bytes_seen
 
           # Retry logic
