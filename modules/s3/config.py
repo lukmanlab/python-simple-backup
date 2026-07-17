@@ -1,5 +1,5 @@
 from botocore.config import Config
-import os
+import settings
 import boto3
 
 from utils.logger import logger
@@ -8,15 +8,14 @@ class S3Config:
     def __init__(self):
         self._config = Config(signature_version='s3v4')
         self._session = boto3.Session()
-        self.bucket_name = os.environ["S3_BUCKET_NAME"]
-        self.prefix = os.environ["S3_PREFIX_PATH"]
+        self.bucket_name = settings.S3_BUCKET_NAME
+        self.prefix = settings.S3_PREFIX_PATH
+        self.endpoint_url = settings.S3_ENDPOINT
+        self.retention = settings.BUCKET_RETENTION_DAYS
 
     def create_client(self):
         """Creates and returns an S3 client with the configured settings"""
         try:
-          self.endpoint_url = os.environ["S3_ENDPOINT"]
-          self.bucket_name = os.environ["S3_BUCKET_NAME"]
-
           create_client = self._session.client(
             service_name='s3',
             endpoint_url=self.endpoint_url,
