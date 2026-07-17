@@ -1,13 +1,19 @@
 import logging
 import asyncio
+import settings
 from telegram import Bot
 from telegram.error import TelegramError
 
 class TelegramLogsHandler(logging.Handler):
-    def __init__(self, token: str, chat_id: str):
+    def __init__(self):
         super().__init__()
-        self.bot = Bot(token=token)
-        self.chat_id = chat_id
+
+        if not settings.TELEGRAM_BOT_TOKEN or not settings.TELEGRAM_CHAT_ID:
+            raise ValueError("Telegram is not configured")
+
+        self.bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+        self.chat_id = settings.TELEGRAM_CHAT_ID
+
         self.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
         self.setFormatter(formatter)
@@ -63,13 +69,13 @@ class TelegramLogsHandler(logging.Handler):
         self.loop.close()
         super().close()
 
-def setup_telegram_logger(token: str, chat_id: str, log_level=logging.INFO):
+def setup_telegram_logger(log_level=logging.INFO):
     """Setup and return a logger with Telegram handler"""
     logger = logging.getLogger('telegram_logger')
     
     # Prevent adding handlers multiple times
     if not logger.handlers:
-        telegram_handler = TelegramLogsHandler(token, chat_id)
+        telegram_handler = TelegramLogsHandler()
         telegram_handler.setLevel(log_level)
         logger.addHandler(telegram_handler)
         logger.setLevel(log_level)
