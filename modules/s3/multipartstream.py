@@ -51,7 +51,7 @@ class S3MultipartStream(io.RawIOBase):
             logger.info(f"[done] {self.s3_key} complete, {self.bytes_written/1024/1024:.1f} MB total")
         except Exception:
             logger.error("[error] upload failed "
-                         "(multipart upload NOT aborted so it can be resumed)")
+                         "(multipart upload NOT aborted -- call abort() to clean it up)")
             raise
         super().close()
 
