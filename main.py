@@ -6,10 +6,10 @@ import os
 from pathlib import Path
 from modules.s3.remover import S3Remover
 from modules.s3.uploader import S3Uploader
+from modules.s3.multipartstream import S3MultipartStream
 from utils.logger import logger
 import settings
 
-_backup_dir = settings.BACKUP_DIR
 _source_dir = settings.SOURCE_DIR
 _retention_days = settings.RETENTION_DAYS
 _backup_service = settings.BACKUP_SERVICE
@@ -17,22 +17,18 @@ _s3_prefix_path = settings.S3_PREFIX_PATH
 _skip_backup = settings.SKIP_BACKUP
 
 def create_backup():
-  timestamp = time.strftime("%Y-%m-%d_%H%M%S")
-  backup_name = f"backup-{timestamp}.tar.gz"
-  backup_path = Path(_backup_dir) / backup_name
+  stream = S3MultipartStream(checkpoint_path=settings.CHECKPOINT_PATH)
 
-  os.makedirs(_backup_dir, exist_ok=True)
+  logger.info(f"Streaming backup of {_source_dir} directly to S3")
 
-  logger.info(f"Creating backup: {backup_path}")
-
-  with tarfile.open(backup_path, "w:gz") as tar:
+  with tarfile.open(fileobj=stream, mode="w|gz") as tar:
     tar.add(_source_dir, arcname=os.path.basename(_source_dir))
 
-  logger.info(f"Backup completed: {backup_path}")
+  stream.close()
 
-  return backup_path
+  logger.info("Backup streamed to S3 successfully")
 
-def cleanup_old_backup(target_dir=_backup_dir, pattern="backup-*.tar.gz"):
+def cleanup_old_backup(target_dir, pattern="backup-*.tar.gz"):
   time_now = time.time()
   deleted = 0
 
@@ -67,25 +63,21 @@ def main():
           if not files_to_upload:
               logger.error("No files found to upload")
               sys.exit(1)
-      else:
-          # Create a new backup and upload just that
-          backup = create_backup()
-          if not backup or not os.path.exists(backup):
-              logger.error("Backup creation failed")
-              sys.exit(1)
-          files_to_upload = [backup]
 
-      # Upload all files
-      if _backup_service == "s3":
-          uploader = S3Uploader()
-          if not uploader:
-              logger.error("Failed to initialize S3 uploader")
-              sys.exit(1)
-          
-          for file in files_to_upload:
-              if not uploader.upload_file_v2(file, dst=_s3_prefix_path):
-                  logger.error(f"Failed to upload {file} to S3")
+          # Upload all files
+          if _backup_service == "s3":
+              uploader = S3Uploader()
+              if not uploader:
+                  logger.error("Failed to initialize S3 uploader")
                   sys.exit(1)
+
+              for file in files_to_upload:
+                  if not uploader.upload_file_v2(file, dst=_s3_prefix_path):
+                      logger.error(f"Failed to upload {file} to S3")
+                      sys.exit(1)
+      else:
+          # Stream a new backup directly to S3 (no local file involved)
+          create_backup()
 
   except Exception as e:
     logger.error(e)
@@ -94,8 +86,6 @@ def main():
   finally:
     if _skip_backup:
       cleanup_old_backup(_source_dir, pattern="*.sql")
-    else:  
-      cleanup_old_backup()
 
     remover = S3Remover()
     remover.remove_objects()
