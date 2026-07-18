@@ -35,6 +35,9 @@ def cleanup_old_backup(target_dir, pattern="backup-*.tar.gz"):
   deleted = 0
 
   for file in Path(target_dir).glob(pattern):
+    if not file.is_file():
+      continue
+
     # 60 * 60 * 24 = 1 day
     age_days = (time_now - file.stat().st_mtime) / 86400
 
@@ -58,6 +61,8 @@ def main():
     logger.error(f"Source directory not found: {_source_dir}")
     sys.exit(2)
 
+  skip_backup_succeeded = False
+
   try:
       if _skip_backup:
           # When skipping backup, process all SQL files
@@ -77,6 +82,8 @@ def main():
                   if not uploader.upload_file_v2(file, dst=_s3_prefix_path):
                       logger.error(f"Failed to upload {file} to S3")
                       sys.exit(1)
+
+          skip_backup_succeeded = True
       else:
           # Stream a new backup directly to S3 (no local file involved)
           create_backup()
@@ -86,7 +93,7 @@ def main():
     sys.exit(1)
 
   finally:
-    if _skip_backup:
+    if _skip_backup and skip_backup_succeeded:
       cleanup_old_backup(_source_dir, pattern="*.sql")
 
     remover = S3Remover()
