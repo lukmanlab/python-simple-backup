@@ -21,14 +21,12 @@ def create_backup():
   key = f"{settings.S3_PREFIX_PATH}/backup-{timestamp}.tar.gz"
   stream = S3MultipartStream(key=key)
 
-  logger.info(f"Streaming backup of {_source_dir} directly to S3 as {key}")
+  logger.notice(f"Streaming backup of {_source_dir} directly to S3 as {key}")
 
   with tarfile.open(fileobj=stream, mode="w|gz") as tar:
     tar.add(_source_dir, arcname=os.path.basename(_source_dir))
 
   stream.close()
-
-  logger.info("Backup streamed to S3 successfully")
 
 def cleanup_old_backup(target_dir, pattern="backup-*.tar.gz"):
   time_now = time.time()
@@ -78,10 +76,14 @@ def main():
                   logger.error("Failed to initialize S3 uploader")
                   sys.exit(1)
 
+              logger.notice(f"Uploading {len(files_to_upload)} file(s) to S3")
+
               for file in files_to_upload:
                   if not uploader.upload_file_v2(file, dst=_s3_prefix_path):
                       logger.error(f"Failed to upload {file} to S3")
                       sys.exit(1)
+
+              logger.notice(f"Uploaded {len(files_to_upload)} file(s) to S3 successfully")
 
           skip_backup_succeeded = True
       else:

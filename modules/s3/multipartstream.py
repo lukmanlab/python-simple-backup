@@ -46,7 +46,7 @@ class S3MultipartStream(io.RawIOBase):
                 upload_id=self.upload_id,
                 parts=self.parts
             )
-            logger.info(f"[done] {self.s3_key} complete, {self.bytes_written/1024/1024:.1f} MB total")
+            logger.notice(f"[done] {self.s3_key} complete, {self.bytes_written/1024/1024:.1f} MB total")
         except Exception:
             logger.error(f"[error] upload failed, aborting multipart upload {self.upload_id}")
             try:
