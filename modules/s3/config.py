@@ -64,15 +64,3 @@ class S3Config:
           Key=self.prefix,
           UploadId=upload_id,
        )
-    
-    def get_object(self, source_key: str):
-       return self.create_client().get_object(
-          Bucket=self.bucket_name,
-          Key=source_key,
-       )["Body"]
-    
-    def head_bucket(self, source_key: str):
-       return self.create_client().head_object(
-          Bucket=self.bucket_name,
-          Key=source_key,
-       )
