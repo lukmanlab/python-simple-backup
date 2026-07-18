@@ -33,3 +33,46 @@ class S3Config:
             endpoint_url=self.endpoint_url,
             config=self._config
         )
+
+    def create_multipart_upload(self):
+       response = self.create_client().create_multipart_upload(
+          Bucket=self.bucket_name,
+          Key=self.prefix
+       )
+       return response["UploadId"]
+    
+    def upload_part(self, part_number: any, upload_id: str, body_chunk: bytes):
+       return self.create_client().upload_part(
+            Bucket=self.bucket_name,
+            Key=self.prefix,
+            PartNumber=part_number,
+            UploadId=upload_id,
+            Body=body_chunk,
+       )
+    
+    def complete_multipart_upload(self, upload_id: str, parts: list):
+       return self.create_client().complete_multipart_upload(
+          Bucket=self.bucket_name,
+          Key=self.prefix,
+          UploadId=upload_id,
+          MultipartUpload={"Parts": parts},
+       )
+    
+    def abort_multipart_upload(self, upload_id: str):
+       return self.create_client().abort_multipart_upload(
+          Bucket=self.bucket_name,
+          Key=self.prefix,
+          UploadId=upload_id,
+       )
+    
+    def get_object(self, source_key: str):
+       return self.create_client().get_object(
+          Bucket=self.bucket_name,
+          Key=source_key,
+       )["Body"]
+    
+    def head_bucket(self, source_key: str):
+       return self.create_client().head_object(
+          Bucket=self.bucket_name,
+          Key=source_key,
+       )

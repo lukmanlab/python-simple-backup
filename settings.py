@@ -20,3 +20,6 @@ S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
 S3_PREFIX_PATH = os.environ["S3_PREFIX_PATH"]
 S3_ENDPOINT = os.environ["S3_ENDPOINT"]
 BUCKET_RETENTION_DAYS = os.environ.get("BUCKET_RETENTION_DAYS", "0")
+
+# default 50MB
+MULTIPART_SIZE = int(os.environ.get("MULTIPART_SIZE", 50 * 1024 * 1024))
