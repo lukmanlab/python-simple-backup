@@ -17,9 +17,11 @@ _s3_prefix_path = settings.S3_PREFIX_PATH
 _skip_backup = settings.SKIP_BACKUP
 
 def create_backup():
-  stream = S3MultipartStream(checkpoint_path=settings.CHECKPOINT_PATH)
+  timestamp = time.strftime("%Y-%m-%d_%H%M%S")
+  key = f"{settings.S3_PREFIX_PATH}/backup-{timestamp}.tar.gz"
+  stream = S3MultipartStream(key=key)
 
-  logger.info(f"Streaming backup of {_source_dir} directly to S3")
+  logger.info(f"Streaming backup of {_source_dir} directly to S3 as {key}")
 
   with tarfile.open(fileobj=stream, mode="w|gz") as tar:
     tar.add(_source_dir, arcname=os.path.basename(_source_dir))

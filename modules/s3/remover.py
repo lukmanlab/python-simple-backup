@@ -17,11 +17,15 @@ class S3Remover():
       Prefix=self.prefix
     )
 
-    current_time = datetime.now(tz=response['Contents'][0]['LastModified'].tzinfo)
+    contents = response.get('Contents')
+    if not contents:
+      return
+
+    current_time = datetime.now(tz=contents[0]['LastModified'].tzinfo)
     retention_date = current_time - timedelta(days=int(self.retention))
 
-    for item in response['Contents']:
-      if item['LastModified'] < retention_date and len(response['Contents']) > 1:
+    for item in contents:
+      if item['LastModified'] < retention_date and len(contents) > 1:
         # clean up
         try:
           self.s3_client.delete_object(
