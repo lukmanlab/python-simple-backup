@@ -78,7 +78,7 @@ If unset, Telegram logging is silently skipped — everything else still logs to
 | `S3_PREFIX_PATH` | S3 key prefix backups are written under | - | ✅ |
 | `S3_ENDPOINT` | S3-compatible endpoint | - | ✅ |
 | `BUCKET_RETENTION_DAYS` | Delete S3 objects under `S3_PREFIX_PATH` older than X days | 0 | ❌ |
-| `MULTIPART_SIZE` | Bytes per multipart upload part for the streaming backup path | 52428800 (50MB) | ❌ |
+| `MULTIPART_SIZE_MB` | Megabytes per multipart upload part for the streaming backup path | 50 | ❌ |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token for log notifications | - | ❌ |
 | `TELEGRAM_CHAT_ID` | Telegram chat ID to send log notifications to | - | ❌ |
 
