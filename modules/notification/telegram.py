@@ -4,6 +4,8 @@ import settings
 from telegram import Bot
 from telegram.error import TelegramError
 
+NOTICE = 25  # kept in sync with utils.logger.NOTICE; duplicated to avoid a circular import
+
 class TelegramLogsHandler(logging.Handler):
     def __init__(self):
         super().__init__()
@@ -14,7 +16,7 @@ class TelegramLogsHandler(logging.Handler):
         self.bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
         self.chat_id = settings.TELEGRAM_CHAT_ID
 
-        self.setLevel(logging.WARNING)
+        self.setLevel(NOTICE)
         formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
         self.setFormatter(formatter)
         self.loop = asyncio.new_event_loop()
@@ -72,17 +74,19 @@ class TelegramLogsHandler(logging.Handler):
 def setup_telegram_logger(log_level=logging.INFO):
     """Setup and return a logger with Telegram handler.
 
-    The Telegram handler's own level is always clamped to at least WARNING,
+    The Telegram handler's own level is always clamped to at least NOTICE,
     regardless of log_level, so per-part/per-record INFO progress logs never
     trigger a Telegram message -- each one is a blocking network call, and a
-    large multipart upload can produce dozens of them.
+    large multipart upload can produce dozens of them. NOTICE-level and
+    above (backup start/done milestones, warnings, errors) still reach
+    Telegram.
     """
     logger = logging.getLogger('telegram_logger')
 
     # Prevent adding handlers multiple times
     if not logger.handlers:
         telegram_handler = TelegramLogsHandler()
-        telegram_handler.setLevel(max(log_level, logging.WARNING))
+        telegram_handler.setLevel(max(log_level, NOTICE))
         logger.addHandler(telegram_handler)
         logger.setLevel(log_level)
 

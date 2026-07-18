@@ -4,6 +4,15 @@ from pathlib import Path
 import settings
 from modules.notification.telegram import setup_telegram_logger
 
+NOTICE = 25
+logging.addLevelName(NOTICE, "NOTICE")
+
+def _notice(self, message, *args, **kwargs):
+    if self.isEnabledFor(NOTICE):
+        self._log(NOTICE, message, args, **kwargs)
+
+logging.Logger.notice = _notice
+
 def setup_logger(name=__name__, log_level=logging.INFO, log_file="backup.log"):
     """Setup and return a configured logger instance."""
     logger = logging.getLogger(name)
