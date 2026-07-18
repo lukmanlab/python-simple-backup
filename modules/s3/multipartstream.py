@@ -8,8 +8,6 @@ class S3MultipartStream(io.RawIOBase):
 
     def __init__(self, key: str):
         self.s3_config = S3Config()
-        self.s3_client = self.s3_config.create_client()
-        self.s3_bucket = self.s3_config.bucket_name
         self.s3_key = key
         self.buffer = bytearray()
         self.bytes_written = 0
@@ -50,11 +48,14 @@ class S3MultipartStream(io.RawIOBase):
             )
             logger.info(f"[done] {self.s3_key} complete, {self.bytes_written/1024/1024:.1f} MB total")
         except Exception:
-            logger.error("[error] upload failed "
-                         "(multipart upload NOT aborted -- call abort() to clean it up)")
+            logger.error(f"[error] upload failed, aborting multipart upload {self.upload_id}")
+            try:
+                self.abort()
+            except Exception:
+                logger.error(f"[error] failed to abort multipart upload {self.upload_id}", exc_info=True)
             raise
         super().close()
 
     def abort(self):
-        """Call explicitly if you want to give up entirely (not just pause)."""
+        """Abort the multipart upload, discarding any parts already uploaded."""
         self.s3_config.abort_multipart_upload(key=self.s3_key, upload_id=self.upload_id)
