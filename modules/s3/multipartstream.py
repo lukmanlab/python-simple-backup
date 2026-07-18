@@ -3,6 +3,7 @@ import json
 import os
 from modules.s3.config import S3Config
 import settings
+from utils.logger import logger
 
 class S3MultipartStream(io.RawIOBase):
     """File-like object that streams writes into an s3 multipart upload,
@@ -22,8 +23,8 @@ class S3MultipartStream(io.RawIOBase):
             self.upload_id = state["upload_id"]
             self.parts = state["parts"]
             self.part_number = state["parts"][-1]["PartNumber"] + 1 if state["parts"] else 1
-            print(f"[resume] continuing upload_id={self.upload_id}, "
-                  f"{len(self.parts)} parts already uploaded")
+            logger.info(f"[resume] continuing upload_id={self.upload_id}, "
+                        f"{len(self.parts)} parts already uploaded")
         else:
             self.upload_id = self.s3_config.create_multipart_upload()
             self.parts = []
@@ -70,8 +71,8 @@ class S3MultipartStream(io.RawIOBase):
         )
         self.parts.append({"ETag": response["ETag"], "PartNumber": self.part_number})
         self._save_checkpoint()
-        print(f"[part {self.part_number}] uploaded {len(chunk)/1024/1024:.1f} MB"
-              f"(Total so far: {self.bytes_written/1024/1024:.1f} MB)")
+        logger.info(f"[part {self.part_number}] uploaded {len(chunk)/1024/1024:.1f} MB"
+                    f"(Total so far: {self.bytes_written/1024/1024:.1f} MB)")
         self.part_number += 1
 
     def close(self):
@@ -83,10 +84,10 @@ class S3MultipartStream(io.RawIOBase):
                 parts=self.parts
             )
             self._clear_checkpoint()
-            print(f"[done] {self.s3_prefix} complete, {self.bytes_written/1024/1024:.1f} MB total")
+            logger.info(f"[done] {self.s3_prefix} complete, {self.bytes_written/1024/1024:.1f} MB total")
         except Exception:
-            print("[error] upload failed, checkpoint preserved for resume "
-                  "(multipart upload NOT aboarted so it can be resumed)")
+            logger.error("[error] upload failed, checkpoint preserved for resume "
+                         "(multipart upload NOT aborted so it can be resumed)")
             raise
         super().close()
     
