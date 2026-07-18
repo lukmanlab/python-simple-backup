@@ -4,3 +4,7 @@ __pycache__
 *.log
 note.txt
 docs/superpowers/plans
+.superpowers
+venv
+run.sh
+run_sql.sh
