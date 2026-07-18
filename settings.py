@@ -22,4 +22,4 @@ S3_ENDPOINT = os.environ["S3_ENDPOINT"]
 BUCKET_RETENTION_DAYS = os.environ.get("BUCKET_RETENTION_DAYS", "0")
 
 # default 50MB
-MULTIPART_SIZE = int(os.environ.get("MULTIPART_SIZE_MB", "50")) * 1024 * 1024
+MULTIPART_SIZE = int(os.environ.get("MULTIPART_SIZE_MB", "250")) * 1024 * 1024

@@ -37,7 +37,7 @@ class S3Remover():
             Key=item['Key'],
           )
 
-          logger.info(f"Deleting object {item['Key']} success!")
+          logger.notice(f"Deleting object {item['Key']} success!")
 
         except ClientError as e:
           logger.error(f"Error deleting object: {e}")
