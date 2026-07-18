@@ -1,10 +1,7 @@
 import io
 import json
 import os
-import tarfile
-import time
 from modules.s3.config import S3Config
-from modules.s3.objectreader import S3ObjectReader
 import settings
 
 class S3MultipartStream(io.RawIOBase):
@@ -97,40 +94,3 @@ class S3MultipartStream(io.RawIOBase):
         """Call explicitly if you want to give up entirely (not just pause)."""
         self.s3_config.abort_multipart_upload(upload_id=self.upload_id)
         self._clear_checkpoint()
-
-def stream_s3_objects_to_targz(
-    source_keys,
-    checkpoint_path=None,
-):
-    """
-    source_keys: list of S3 object keys to include in the archive.
-    Each is streamed in chunks directly from S3 into the tar, and the tar
-    output is streamed in chunks directly out to S3 -- no full file, on
-    either end, ever touches local disk.
-    """
-
-    s3 = S3Config()
-    stream = S3MultipartStream(checkpoint_path)
-
-    try:
-        with tarfile.open(fileobj=stream, mode="w|gz") as tar:
-            for i, source_key in enumerate(source_keys, 1):
-                head = s3.head_bucket(source_key=source_key)
-                size = head["ContentLength"]
- 
-                info = tarfile.TarInfo(name=source_key.split("/")[-1])
-                info.size = size
-                info.mtime = time.time()
- 
-                reader = S3ObjectReader(source_key=source_key)
-                tar.addfile(info, fileobj=reader)
-                print(f"[{i}/{len(source_keys)}] added {source_key} "
-                      f"({size/1024/1024:.1f} MB)")
-        stream.close()
-    except Exception:
-        # Don't abort here -- checkpoint is preserved, rerun the function
-        # with the same checkpoint_path to resume from the last good part.
-        # NOTE: resume is only fully safe if you restart *before* any file
-        # midway through being added -- see caveat below.
-        raise
-
