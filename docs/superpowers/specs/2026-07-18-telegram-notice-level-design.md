@@ -15,6 +15,9 @@ succeeded — only failures (`logger.error`/`logger.critical`) are visible.
 
 - Restore a Telegram notification confirming a successful upload, for both
   the streaming backup path and the `SKIP_BACKUP` per-file upload path.
+- Notify Telegram when a backup run *starts*, for both paths, so a run that
+  never reaches completion (crashes, hangs, killed) is still visible as
+  having been attempted.
 - Do not reintroduce per-part progress spam to Telegram.
 - Keep log severity semantically honest — a success should not be logged as
   a `WARNING`.
@@ -26,9 +29,7 @@ succeeded — only failures (`logger.error`/`logger.critical`) are visible.
 - Retention-cleanup detail (`"Old backups removed"`, per-object
   `"Deleting object ... success"` in `S3Remover`) stays `INFO`-only
   (console/file), not promoted to Telegram. These are operational detail,
-  not run-outcome milestones.
-- The "backup starting" log line stays `INFO`-only; only completion is
-  promoted. One Telegram message per successful run, not two.
+  not run-outcome milestones, and are not "backup starting/finished" events.
 
 ## Design
 
@@ -69,22 +70,37 @@ not.
 
 ### Call sites promoted to `NOTICE`
 
-1. `modules/s3/multipartstream.py` — the `"[done] {key} complete, ..."`
+**Streaming backup path:**
+1. `main.py:24` — the existing start line changes from `logger.info` to
+   `logger.notice`:
+   ```python
+   logger.notice(f"Streaming backup of {_source_dir} directly to S3 as {key}")
+   ```
+2. `modules/s3/multipartstream.py` — the `"[done] {key} complete, ..."`
    line in `close()` changes from `logger.info` to `logger.notice`. This is
    the authoritative "this archive is fully uploaded to S3" confirmation
    for the streaming backup path.
-2. `main.py` — the `SKIP_BACKUP` path currently has no success log after
-   its upload loop finishes. Add one after the `for file in
-   files_to_upload:` loop completes without a `sys.exit`:
+
+(`main.py:31`'s `"Backup streamed to S3 successfully"` — printed
+immediately after `create_backup()` returns — is now redundant with the
+`[done]` NOTICE already sent from inside `close()`; drop this line rather
+than sending two Telegram messages for one completion event.)
+
+**`SKIP_BACKUP` path** (currently has no start or success log at all):
+3. `main.py` — add a start line before the upload loop begins, inside the
+   `if _backup_service == "s3":` block:
+   ```python
+   logger.notice(f"Uploading {len(files_to_upload)} file(s) to S3")
+   ```
+4. `main.py` — add a success line after the upload loop completes without
+   a `sys.exit`:
    ```python
    logger.notice(f"Uploaded {len(files_to_upload)} file(s) to S3 successfully")
    ```
-   placed inside the `if _backup_service == "s3":` block, after the loop.
 
 ### Everything else unchanged
 
-`main.py`'s "Streaming backup of ... as {key}" start message, per-part
-progress (`multipartstream.py`), `"Old backups removed"`, and
+Per-part progress (`multipartstream.py`), `"Old backups removed"`, and
 `S3Remover`'s per-object deletion log all remain `logger.info` — they do
 not reach Telegram, matching current (post-fix) behavior.
 
@@ -92,8 +108,9 @@ not reach Telegram, matching current (post-fix) behavior.
 
 No automated test suite exists in this repo (consistent with the rest of
 this branch). Verification is manual: run a backup with
-`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` configured and confirm exactly one
-Telegram message arrives for a successful streaming run (the `[done]`
-line), one for a successful `SKIP_BACKUP` run (the new "Uploaded N file(s)"
-line), and that per-part progress lines do not appear in Telegram while
-still appearing in the console/log file.
+`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` configured and confirm exactly two
+Telegram messages arrive for a successful streaming run (start, then
+`[done]`), exactly two for a successful `SKIP_BACKUP` run ("Uploading N
+file(s)", then "Uploaded N file(s) successfully"), and that per-part
+progress lines do not appear in Telegram while still appearing in the
+console/log file.
