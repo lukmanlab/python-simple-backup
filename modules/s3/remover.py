@@ -12,10 +12,14 @@ class S3Remover():
     self.retention = self.s3_config.retention
 
   def remove_objects(self):
-    response = self.s3_client.list_objects_v2(
-      Bucket=self.bucket_name,
-      Prefix=self.prefix
-    )
+    try:
+      response = self.s3_client.list_objects_v2(
+        Bucket=self.bucket_name,
+        Prefix=self.prefix
+      )
+    except ClientError as e:
+      logger.error(f"Error listing objects for retention cleanup: {e}")
+      return
 
     contents = response.get('Contents')
     if not contents:
