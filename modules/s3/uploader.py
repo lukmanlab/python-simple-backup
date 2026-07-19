@@ -3,28 +3,17 @@ import os
 import time
 import requests
 
-import boto3
-from boto3.session import Config
 from botocore.exceptions import ClientError
 from boto3.s3.transfer import TransferConfig
 
-
+from modules.s3.config import S3Config
 from utils.logger import logger
 
 class S3Uploader:
-  def __init__(self,
-    endpoint_url: str,
-    bucket_name: str,
-  ):
-    self.bucket_name = os.environ.get("S3_BUCKET_NAME", "default-bucket")
-    session = boto3.Session()
-    self.s3_client = session.client(
-      service_name="s3",
-      endpoint_url=os.environ["S3_ENDPOINT"],
-      config=Config(
-        signature_version='s3v4'
-      )
-    )
+  def __init__(self):
+    self.s3_config = S3Config()
+    self.bucket_name = self.s3_config.bucket_name
+    self.s3_client = self.s3_config.create_client()
 
   def create_presigned_post(self,
     object_name: str,
@@ -108,7 +97,8 @@ class S3Uploader:
               
               if bytes_seen - last_log >= log_interval or bytes_seen >= file_size:
                   percent = (bytes_seen / file_size) * 100
-                  logger.info(f"Progress: {bytes_seen/1024/1024:.2f} MB / {file_size/1024/1024:.2f} MB ({percent:.1f}%)")
+                  if percent >= 95:
+                    logger.info(f"Progress: {bytes_seen/1024/1024:.2f} MB / {file_size/1024/1024:.2f} MB ({percent:.1f}%)")
                   last_log = bytes_seen
 
           # Retry logic
@@ -156,7 +146,6 @@ class S3Uploader:
         logger.error(f"Upload failed for {basename}: {str(e)}", exc_info=True)
         return False
 
-
   def _cleanup_incomplete_uploads(self, key: str) -> None:
     try:
       response = self.s3_client.list_multipart_uploads(
@@ -174,14 +163,3 @@ class S3Uploader:
             )
     except Exception as e:
       logger.warning(f"Failed to cleanup incomplete uploads for {key}: {str(e)}")
-
-def create_s3_uploader() -> Optional[S3Uploader]:
-  try:
-    return S3Uploader(
-      endpoint_url=os.environ.get("S3_ENDPOINT_URL", "https://s3.amazonaws.com"),
-      bucket_name=os.environ["S3_BUCKET_NAME"]
-    )
-
-  except KeyError as e:
-    logger.error(f"Missing required environment variable: {e}")
-    return None

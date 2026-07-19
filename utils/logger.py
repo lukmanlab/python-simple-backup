@@ -1,6 +1,17 @@
 import logging
 import sys
 from pathlib import Path
+import settings
+from modules.notification.telegram import setup_telegram_logger
+
+NOTICE = 25
+logging.addLevelName(NOTICE, "NOTICE")
+
+def _notice(self, message, *args, **kwargs):
+    if self.isEnabledFor(NOTICE):
+        self._log(NOTICE, message, args, **kwargs)
+
+logging.Logger.notice = _notice
 
 def setup_logger(name=__name__, log_level=logging.INFO, log_file="backup.log"):
     """Setup and return a configured logger instance."""
@@ -11,7 +22,7 @@ def setup_logger(name=__name__, log_level=logging.INFO, log_file="backup.log"):
         return logger
 
     logger.setLevel(log_level)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
 
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
@@ -26,7 +37,14 @@ def setup_logger(name=__name__, log_level=logging.INFO, log_file="backup.log"):
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
+    try:
+        telegram_logger = setup_telegram_logger(log_level=log_level)
+        logger.addHandler(telegram_logger.handlers[0])
+    except Exception as e:
+        logger.error(f"Failed to setup Telegram logging: {e}")
+
+
     return logger
 
 # Create a default logger instance
-logger = setup_logger()
+logger = setup_logger(settings.S3_PREFIX_PATH)
